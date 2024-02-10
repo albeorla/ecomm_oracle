@@ -1,0 +1,19 @@
+{
+  "name": "ecomm-oracle-extraction",
+  "module": "index.ts",
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@extra/proxy-router": "^3.1.6",
+    "playwright": "^1.41.2",
+    "playwright-extra": "^4.3.6",
+    "puppeteer-extra-plugin-anonymize-ua": "^2.4.6",
+    "puppeteer-extra-plugin-recaptcha": "^3.6.8",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  }
+}
