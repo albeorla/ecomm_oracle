@@ -1,3 +1,4 @@
+import os
 import pandas as pd
 from dotenv import load_dotenv
 
@@ -26,3 +27,6 @@ def main():
     ranked_products = calculate_weighted_score(weights, product_data)
     ranked_products = ranked_products.sort_values(by='weighted_score', ascending=False)
     print(ranked_products)
+
+if __name__ == "__main__":
+    main()
