@@ -1,24 +1,28 @@
 #!/usr/bin/env python
-
-from botocore.exceptions import ClientError
-from env_config import EnvConfig
+import uuid
 from aws_ops import AWSOperations
+from env_config import EnvConfig
 
 
 def main():
     config = EnvConfig()
-    aws_ops = AWSOperations(config.aws_region)
+    aws_ops = AWSOperations(config.region)
 
-    try:
-        session_name = "OpportunityMetadataUploader"
-        aws_ops.assume_role(config.metadata_uploader_role_arn, session_name)
-        aws_ops.ensure_table_exists(config.opportunity_metadata_table_name)
-        aws_ops.upload_metadata_from_csv(config.feature_metadata_path, config.opportunity_metadata_table_name)
-    except ClientError as e:
-        print(f"An error occurred: {e}")
-        exit(1)
+    aws_ops.assume_role(config.role_arn,
+                        config.session_name + "_" + uuid.uuid4().hex)
 
-    print("Feature metadata upload complete.")
+    if config.run_migrations:
+        aws_ops.create_table(config.table_name)
+        aws_ops.upload_data_from_csv(
+            [
+                config.products_csv_path,
+                config.opportunity_csv_path,
+                config.feature_metadata_path
+            ],
+            config.table_name)
+
+    aws_ops.query_table(table_name=config.table_name, opportunity_id=config.opportunity_id,
+                        output_file=config.query_output_path)
 
 
 if __name__ == "__main__":
