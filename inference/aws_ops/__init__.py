@@ -6,37 +6,42 @@ from loguru import logger
 
 
 class AWSOperations:
-    def __init__(self, aws_region):
-        self.aws_region = aws_region
+    def __init__(self, region, role_arn, session_name, table_name, query_output_path):
+        self.region = region
+        self.role_arn = role_arn
+        self.session_name = session_name
+        self.table_name = table_name
+        self.query_output_path = query_output_path
         self.session = None
+        self.assume_role()
 
-    def assume_role(self, role_arn, session_name):
+    def assume_role(self):
         sts_client = boto3.client('sts')
         assumed_role = sts_client.assume_role(
-            RoleArn=role_arn,
-            RoleSessionName=session_name
+            RoleArn=self.role_arn,
+            RoleSessionName=self.session_name
         )
         credentials = assumed_role['Credentials']
         self.session = boto3.Session(
             aws_access_key_id=credentials['AccessKeyId'],
             aws_secret_access_key=credentials['SecretAccessKey'],
             aws_session_token=credentials['SessionToken'],
-            region_name=self.aws_region
+            region_name=self.region
         )
 
-    def create_table(self, table_name):
+    def create_table(self):
         dynamodb = self.session.resource('dynamodb')
         existing_tables = dynamodb.meta.client.list_tables()['TableNames']
 
-        if table_name in existing_tables:
-            logger.debug(f"Table {table_name} already exists.")
-            dynamodb.Table(table_name).delete()
-            logger.debug(f"Table {table_name} deleted.")
-            dynamodb.meta.client.get_waiter('table_not_exists').wait(TableName=table_name)
+        if self.table_name in existing_tables:
+            logger.debug(f"Table {self.table_name} already exists.")
+            dynamodb.Table(self.table_name).delete()
+            logger.debug(f"Table {self.table_name} deleted.")
+            dynamodb.meta.client.get_waiter('table_not_exists').wait(TableName=self.table_name)
 
-        logger.debug(f"Creating table {table_name}...")
+        logger.debug(f"Creating table {self.table_name}...")
         table = dynamodb.create_table(
-            TableName=table_name,
+            TableName=self.table_name,
             KeySchema=[
                 {'AttributeName': 'PK', 'KeyType': 'HASH'},  # Partition key
                 {'AttributeName': 'SK', 'KeyType': 'RANGE'}  # Sort key
@@ -69,9 +74,9 @@ class AWSOperations:
         )
         table.wait_until_exists()
 
-    def upload_data_from_csv(self, csv_filepaths, table_name):
+    def upload_data_from_csv(self, csv_filepaths):
         dynamodb = self.session.resource('dynamodb')
-        table = dynamodb.Table(table_name)
+        table = dynamodb.Table(self.table_name)
 
         for csv_filepath in csv_filepaths:
             file_type = os.path.basename(csv_filepath).split('_')[0]  # Identify file type based on name
@@ -105,24 +110,23 @@ class AWSOperations:
                     table.put_item(Item=item)
                     logger.debug(f"Uploaded item: {item}")
 
-    def query_table(self, table_name, opportunity_id, output_file='data/gsi_query_sample.json'):
+    def get_products_by_opportunity(self, opportunity_id):
+        # Replaces your query_table
         dynamodb = self.session.resource('dynamodb')
-        table = dynamodb.Table(table_name)
+        table = dynamodb.Table(self.table_name)
 
-        key_condition_expression = Key('opportunity').eq(':opp') & Key('SK').begins_with('PROD#')
+        key_condition_expression = Key('opportunity').eq(':opp')
         expression_attribute_values = {
-            ':opp': opportunity_id  # No need to prepend 'OPP#'
+            ':opp': f'OPP#{opportunity_id}'
         }
 
         response = table.query(
             IndexName='OpportunityIndex',
             KeyConditionExpression=key_condition_expression,
-            ExpressionAttributeValues=expression_attribute_values
+            ExpressionAttributeValues=expression_attribute_values,
+            FilterExpression=Key('SK').begins_with('PROD#')  # Filter for PRODUCTS only
         )
 
-        with open(output_file, 'w') as file:
+        with open(self.query_output_path, 'w') as file:
             file.write(str(response))
         logger.debug(f"Query response: {response}")
-
-        # Return the items retrieved from the query
-        return response['Items']
