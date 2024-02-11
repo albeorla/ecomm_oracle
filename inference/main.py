@@ -7,7 +7,6 @@ from aws_ops import AWSOperations
 
 def main():
     config = EnvConfig()
-
     aws_ops = AWSOperations(config.aws_region)
 
     try:
