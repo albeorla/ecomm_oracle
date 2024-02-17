@@ -62,7 +62,7 @@ def preprocess_data(features):
     return preprocessor
 
 
-def perform_grid_search(pipeline, X_train, y_train):
+def perform_grid_search(pipeline, x_train, y_train):
     param_grid = {
         'model__n_estimators': [100, 200, 300],
         'model__learning_rate': [0.01, 0.05, 0.1, 0.2],
@@ -74,14 +74,14 @@ def perform_grid_search(pipeline, X_train, y_train):
 
     tscv = TimeSeriesSplit(n_splits=5)
     grid_search = GridSearchCV(pipeline, param_grid, cv=tscv, scoring='r2', verbose=1, n_jobs=-1)
-    grid_search.fit(X_train, y_train)
+    grid_search.fit(x_train, y_train)
 
     logger.info(f"Best parameters found: {grid_search.best_params_}")
     return grid_search
 
 
-def evaluate_model(model, X_test, y_test):
-    y_pred = model.predict(X_test)
+def evaluate_model(model, x_test, y_test):
+    y_pred = model.predict(x_test)
     logger.info(f"MAE: {mean_absolute_error(y_test, y_pred)}")
     logger.info(f"MSE: {mean_squared_error(y_test, y_pred)}")
     logger.info(f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred))}")
@@ -98,16 +98,16 @@ def main():
     labels = data['Net'].dropna()
 
     # Split data into training and testing sets
-    X_train, X_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42)
+    x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42)
 
-    # Setup the preprocessing pipeline
+    # Set up the preprocessing pipeline
     preprocessor = preprocess_data(features)  # Setup preprocessing steps
     pipeline = Pipeline(steps=[('preprocessor', preprocessor),
                                ('model', GradientBoostingRegressor(random_state=42))])
 
     # Perform grid search and model evaluation
-    grid_search = perform_grid_search(pipeline, X_train, y_train)
-    evaluate_model(grid_search.best_estimator_, X_test, y_test)
+    grid_search = perform_grid_search(pipeline, x_train, y_train)
+    evaluate_model(grid_search.best_estimator_, x_test, y_test)
 
 
 
