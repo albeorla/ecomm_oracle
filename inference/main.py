@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
-import glob
+import wandb
+
 import numpy as np
 import os
 import pandas as pd
-import wandb
 from inference.env_config import EnvConfig
 from joblib import dump
 from loguru import logger
@@ -18,10 +18,15 @@ from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
 
 # Load and preprocess data
-def load_data(directory="data"):
-    file_pattern = os.path.join(directory, 'products*.csv')
-    csv_files = glob.glob(file_pattern)
-    concatenated_df = pd.concat((pd.read_csv(f) for f in csv_files), ignore_index=True)
+def load_data(base_directory="data/inputs/products"):
+    all_dfs = []  # List to store all dataframes
+    for subdir, dirs, files in os.walk(base_directory):
+        for file in files:
+            if file.endswith('.csv'):
+                file_path = os.path.join(subdir, file)
+                df = pd.read_csv(file_path)
+                all_dfs.append(df)
+    concatenated_df = pd.concat(all_dfs, ignore_index=True)
     return concatenated_df
 
 
@@ -103,7 +108,6 @@ def main():
     config = EnvConfig()
     np.random.seed(config.random_seed)
 
-
     wandb.init(project="ecomm-oracle", config=config.__dict__,
                name="GradientBoostingRegressor-Experiment", tags=["GBR", "grid-search"],
                notes="Running grid search on Gradient Boosting Regressor with e-commerce data.")
@@ -114,11 +118,12 @@ def main():
     data = preprocess_features(data)
 
     # Save preprocessed data to a CSV file
-    data.to_csv(config.preprocessed_data_path, index=False)
+    preprocessed_data_path = 'data/preprocessed_data.csv'
+    data.to_csv(preprocessed_data_path, index=False)
 
     # Log the preprocessed dataset as an artifact
     artifact = wandb.Artifact('preprocessed_dataset', type='dataset')
-    artifact.add_file(config.preprocessed_data_path)
+    artifact.add_file(preprocessed_data_path)
     wandb.log_artifact(artifact)
 
     # Separate features and target variable
