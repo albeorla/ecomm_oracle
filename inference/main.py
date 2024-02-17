@@ -4,12 +4,15 @@ import glob
 import numpy as np
 import os
 import pandas as pd
+import wandb
+from inference.env_config import EnvConfig
+from joblib import dump
 from loguru import logger
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import GradientBoostingRegressor
 from sklearn.impute import SimpleImputer
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score, median_absolute_error
-from sklearn.model_selection import train_test_split, GridSearchCV, TimeSeriesSplit
+from sklearn.model_selection import GridSearchCV, TimeSeriesSplit, train_test_split
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler, OneHotEncoder
 
@@ -37,6 +40,7 @@ def preprocess_features(data):
         data['ProductAge'] = (pd.to_datetime('now') - data['Date First Available']).dt.days
 
     return data
+
 
 def preprocess_data(features):
     # Identify numeric and categorical features
@@ -77,38 +81,95 @@ def perform_grid_search(pipeline, x_train, y_train):
     grid_search.fit(x_train, y_train)
 
     logger.info(f"Best parameters found: {grid_search.best_params_}")
+    wandb.log({"best_params": grid_search.best_params_,
+               "best_score": grid_search.best_score_})
     return grid_search
 
 
 def evaluate_model(model, x_test, y_test):
     y_pred = model.predict(x_test)
-    logger.info(f"MAE: {mean_absolute_error(y_test, y_pred)}")
-    logger.info(f"MSE: {mean_squared_error(y_test, y_pred)}")
-    logger.info(f"RMSE: {np.sqrt(mean_squared_error(y_test, y_pred))}")
-    logger.info(f"R² : {r2_score(y_test, y_pred)}")
-    logger.info(f"MedAE: {median_absolute_error(y_test, y_pred)}")
+    metrics = {
+        "MAE": mean_absolute_error(y_test, y_pred),
+        "MSE": mean_squared_error(y_test, y_pred),
+        "RMSE": np.sqrt(mean_squared_error(y_test, y_pred)),
+        "R2": r2_score(y_test, y_pred),
+        "MedAE": median_absolute_error(y_test, y_pred)
+    }
+    logger.info(f"Metrics: {metrics}")
+    wandb.log(metrics)
 
 
 def main():
+    config = EnvConfig()
+    np.random.seed(config.random_seed)
+
+
+    wandb.init(project="ecomm-oracle", config=config.__dict__,
+               name="GradientBoostingRegressor-Experiment", tags=["GBR", "grid-search"],
+               notes="Running grid search on Gradient Boosting Regressor with e-commerce data.")
+
     data = load_data()
-    data = preprocess_features(data)  # Direct conversions and feature engineering
+
+    # Direct conversions and feature engineering
+    data = preprocess_features(data)
+
+    # Save preprocessed data to a CSV file
+    data.to_csv(config.preprocessed_data_path, index=False)
+
+    # Log the preprocessed dataset as an artifact
+    artifact = wandb.Artifact('preprocessed_dataset', type='dataset')
+    artifact.add_file(config.preprocessed_data_path)
+    wandb.log_artifact(artifact)
 
     # Separate features and target variable
     features = data.drop(columns=['Net', 'ASIN'])
     labels = data['Net'].dropna()
 
+    # Assuming config has attributes relevant to the model training
+    wandb.config.update({
+        "test_size": 0.2,
+        "random_state": config.random_seed,
+        "model": "GradientBoostingRegressor",
+        "preprocessing": {
+            "numeric_imputer_strategy": "median",
+            "categorical_imputer_strategy": "most_frequent",
+            "encoder": "OneHotEncoder",
+            "scaler": "StandardScaler"
+        }
+    })
+
     # Split data into training and testing sets
-    x_train, x_test, y_train, y_test = train_test_split(features, labels, test_size=0.2, random_state=42)
+    x_train, x_test, y_train, y_test = train_test_split(
+        features,
+        labels,
+        test_size=0.2,
+        random_state=config.random_seed
+    )
+
+    # Setup preprocessing steps
+    preprocessor = preprocess_data(features)
+
+    artifact = wandb.Artifact('dataset', type='dataset')
+    artifact.add_dir('data')
+    wandb.log_artifact(artifact)
 
     # Set up the preprocessing pipeline
-    preprocessor = preprocess_data(features)  # Setup preprocessing steps
-    pipeline = Pipeline(steps=[('preprocessor', preprocessor),
-                               ('model', GradientBoostingRegressor(random_state=42))])
+    if config.run_pipeline:
+        pipeline = Pipeline(steps=[('preprocessor', preprocessor),
+                                   ('model', GradientBoostingRegressor(random_state=config.random_seed))])
 
-    # Perform grid search and model evaluation
-    grid_search = perform_grid_search(pipeline, x_train, y_train)
-    evaluate_model(grid_search.best_estimator_, x_test, y_test)
+        # Perform grid search and model evaluation
+        grid_search = perform_grid_search(pipeline, x_train, y_train)
+        evaluate_model(grid_search.best_estimator_, x_test, y_test)
 
+        # Save the trained model to disk
+        dump(grid_search.best_estimator_, 'model.pkl')
+
+        model_artifact = wandb.Artifact('model', type='model')
+        model_artifact.add_file('model.pkl')  # Now the model is saved and can be added as an artifact
+        wandb.log_artifact(model_artifact)
+
+    wandb.finish()
 
 
 if __name__ == '__main__':

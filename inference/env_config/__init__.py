@@ -55,6 +55,13 @@ class EnvConfig:
             else:
                 # Convert the variable name to lowercase snake_case for attribute access
                 attr_name = self._convert_to_snake_case(var)
+                # Convert integer and float strings to their respective types
+                if value.isdigit():
+                    value = int(value)
+                elif '.' in value and value.replace('.', '').isdigit():
+                    value = float(value)
+                elif value.lower() in ['true', 'false']:
+                    value = value.lower() == 'true'
                 setattr(self, attr_name, value)
                 self._vars[var] = value
 
