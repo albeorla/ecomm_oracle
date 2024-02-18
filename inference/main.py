@@ -107,7 +107,6 @@ def evaluate_model(model, x_test, y_test):
 def main():
     config = EnvConfig()
     np.random.seed(config.random_seed)
-
     wandb.init(project="ecomm-oracle", config=config.__dict__,
                name="GradientBoostingRegressor-Experiment", tags=["GBR", "grid-search"],
                notes="Running grid search on Gradient Boosting Regressor with e-commerce data.")
@@ -116,6 +115,13 @@ def main():
 
     # Direct conversions and feature engineering
     data = preprocess_features(data)
+
+    # Filter out data that was used for training
+    if 'UsedForTraining' in data.columns:
+        data = data[data['UsedForTraining'] == False]
+        logger.info(f"Filtered out {data.shape[0]} rows that were used for training.")
+    else:
+        logger.warning("No 'UsedForTraining' column found in the dataset. Skipping filtering.")
 
     # Save preprocessed data to a CSV file
     preprocessed_data_path = 'data/preprocessed_data.csv'
@@ -127,7 +133,10 @@ def main():
     wandb.log_artifact(artifact)
 
     # Separate features and target variable
-    features = data.drop(columns=['Net', 'ASIN'])
+    drop_columns = ['Net', 'ASIN']
+    if 'UsedForTraining' in data.columns:
+        drop_columns.append('UsedForTraining')
+    features = data.drop(columns=drop_columns)
     labels = data['Net'].dropna()
 
     # Assuming config has attributes relevant to the model training
@@ -165,6 +174,17 @@ def main():
 
         # Perform grid search and model evaluation
         grid_search = perform_grid_search(pipeline, x_train, y_train)
+
+        # Mark the training data as used
+        if 'UsedForTraining' in data.columns:
+            original_indices = data.index[data.index.isin(x_train.index)]
+            data.loc[original_indices, 'UsedForTraining'] = True
+
+            # Save the postprocessed data to disk
+            data.to_csv('data/postprocessed_data.csv', index=False)
+        else:
+            logger.warning("No 'UsedForTraining' column found in the dataset. Skipping marking data as used.")
+
         evaluate_model(grid_search.best_estimator_, x_test, y_test)
 
         # Save the trained model to disk

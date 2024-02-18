@@ -132,11 +132,9 @@ class AWSOperations:
             )
             logger.debug(f"Query response: {response['Items']}")
 
-            # Prepare data for CSV output
             products = response['Items']
             fieldnames = ['asin', 'brand', 'category', 'price']
 
-            # Writing data to a CSV file
             with open(self.query_output_path, mode='w', newline='', encoding='utf-8') as file:
                 writer = csv.DictWriter(file, fieldnames=fieldnames)
                 writer.writeheader()
