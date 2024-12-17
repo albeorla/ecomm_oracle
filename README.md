@@ -1,25 +1,123 @@
-# Amazon FBA Product Profitability Analyzer
+# Amazon FBA Product Profitability Analyzer (Bootstrap PoC)
 
-A machine learning-powered tool for predicting and analyzing profitability of Amazon FBA (Fulfillment by Amazon) products. This project serves as a proof-of-concept for data-driven decision making in e-commerce product selection.
+A proof-of-concept system for evaluating Amazon FBA product profitability using synthetic data. This project provides a bootstrapping framework designed to be replaced with real historical data for actual product performance analysis.
+
+## Purpose
+
+This PoC serves three main goals:
+1. **Bootstrap Framework**: Establish the evaluation pipeline and metrics system using synthetic data
+2. **System Design**: Create pluggable interfaces ready for real data integration
+3. **Hypothesis Testing**: Validate the analysis approach before investing in real data collection
+
+## Current Limitations
+
+As a bootstrapping PoC, this system has important limitations to note:
+- Uses synthetic data generated from assumed distributions
+- Performance metrics are for system validation only
+- Business metrics need validation with real-world data
+- Correlations and relationships are simulated
+
+## Transition to Production
+
+To transition this PoC to a production system:
+
+1. **Data Source Replacement**:
+   - Replace `product_generator.py` with real data connectors
+   - Validate and adjust feature distributions
+   - Implement proper data validation
+   - Add historical data tracking
+
+2. **Metric Validation**:
+   - Calibrate performance metrics with real data
+   - Validate business metric calculations
+   - Add confidence intervals
+   - Implement A/B testing capability
+
+3. **Model Refinement**:
+   - Retrain with historical data
+   - Validate feature importance
+   - Add model monitoring
+   - Implement retraining pipeline
 
 ## Features
 
-- 🤖 Machine learning-based profit prediction (93% accuracy)
-- 📊 Statistical analysis of product performance
-- 🔄 Automated data generation with realistic distributions
-- 🎯 Hyperparameter tuning for optimal model performance
-- 📈 Detailed performance metrics and predictions
-- 📝 Comprehensive logging and execution timing
-- 🛠️ Command-line interface with sensible defaults
+Current PoC implementation includes:
+- 🤖 ML-based profit prediction framework
+- 📊 Synthetic data generation for testing
+- 🔄 Pluggable data source interface
+- 🎯 Hyperparameter tuning system
+- 📈 Metric calculation framework
+- 📝 Logging and monitoring setup
+- 🛠️ CLI for testing and validation
 
-## Performance Metrics
+## Mock Performance Metrics
 
-Based on recent testing with envelope products:
-- 86.4% of predictions within 10% accuracy
-- Mean Absolute Error: $11.88
-- Overall prediction accuracy: 93.17%
-- Profit range: -$220 to $1,184
-- Average predicted profit: $260.73
+The following metrics are based on synthetic data and serve to validate the system's functionality:
+
+#### System Validation
+- 85.9% of predictions within ±10% (synthetic baseline)
+- Mean Absolute Error: $25.74
+- R² Score: 0.970 (on synthetic data)
+- Overall prediction accuracy: 93.2%
+
+#### Sample Profit Analysis
+- Test profit range: $-221.26 to $1,187.10
+- Sample mean profit: $260.76
+- Sample median profit: $246.58
+- Total products analyzed: 240
+
+Note: These metrics are generated from synthetic data and should not be used for actual business decisions.
+
+### Business Metrics Framework
+
+The analyzer implements calculations for:
+
+#### Financial Metrics
+- ROI calculation framework
+- Margin analysis system
+- Break-even analysis
+- Net profit calculation
+
+#### Operational Metrics
+- Sales volume tracking
+- Payback period estimation
+- Competition impact analysis
+- Ranking correlation framework
+- Review impact analysis
+
+## Development
+
+### Current Stack
+- scikit-learn for ML pipeline
+- pandas for data handling
+- Click for CLI
+- loguru for logging
+- numpy for numerical operations
+
+### Adding Real Data Sources
+
+To add real data sources:
+1. Implement `DataSource` interface in `src/data/data_source.py`
+2. Add data validation in `src/data/validators/`
+3. Update feature preprocessing in `src/models/`
+4. Modify metric calculations as needed
+
+## Project Structure
+
+```
+ecomm_oracle/
+├── src/
+│   ├── data/
+│   │   ├── data_source.py       # Abstract data source interface
+│   │   ├── mock_data_source.py  # Synthetic data generation (to be replaced)
+│   │   └── product_specs.py     # Product specifications interface
+│   ├── models/
+│   │   ├── model_interface.py   # Model interface definition
+│   │   ├── model_tuner.py      # Tuning framework
+│   │   └── random_forest_model.py
+│   └── utils/
+│       └── logger.py
+```
 
 ## Installation
 
@@ -97,28 +195,6 @@ Options:
   --help                  Show this message and exit
 ```
 
-## Project Structure
-
-```
-ecomm_oracle/
-├── src/
-│   ├── data/
-│   │   ├── csv_data_source.py    # Data generation and handling
-│   │   ├── product_generator.py  # Realistic data generation
-│   │   └── product_specs.py      # Product specifications
-│   ├── models/
-│   │   ├── model_interface.py    # Model interface definition
-│   │   ├── model_tuner.py       # Hyperparameter tuning
-│   │   └── random_forest_model.py # ML model implementation
-│   └── utils/
-│       └── logger.py             # Logging configuration
-├── data/                         # Generated data files
-├── models/                       # Trained model files
-├── predictions/                  # Prediction outputs
-├── main.py                      # CLI entry point
-└── requirements.txt             # Project dependencies
-```
-
 ## Data Generation
 
 The system generates realistic product data using:
@@ -133,23 +209,23 @@ The system generates realistic product data using:
 The analyzer generates two types of output files for each analysis:
 
 1. **Detailed Predictions** (`predictions/<product_type>_predictions.csv`):
-   - Individual predictions for each product
-   - Actual vs predicted profits
-   - Prediction accuracy metrics
-   - Feature values used for prediction
+   - Product identifiers (ASIN)
+   - Category and subcategory information
+   - Product features (price, weight, review metrics)
+   - Market data (competitors, estimated sales)
+   - Cost breakdown (FBA fees, COGS)
+   - Monthly profit predictions
+   - Last updated timestamp
 
 2. **Summary Report** (`predictions/<product_type>_summary.json`):
-   - Overall statistics and metrics
-   - Average and median predicted profit
-   - Profit range and distribution
-   - Model performance indicators
-   - Percentage of predictions within accuracy thresholds
+   - Product type identifier
+   - Total number of products analyzed
+   - Average predicted profit
+   - Median predicted profit
+   - Profit range [min, max]
 
-## Development
-
-The project uses:
-- scikit-learn for machine learning
-- pandas for data handling
-- Click for CLI interface
-- loguru for logging
-- numpy for numerical operations
+The system also maintains detailed logs in `logs/app.log` with:
+   - Training and prediction metrics
+   - Data validation results
+   - Execution times
+   - Error tracking and debugging information

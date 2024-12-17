@@ -108,6 +108,56 @@ class RandomForestModel(Model):
         
         return results
     
+    def calculate_business_metrics(self, data: pd.DataFrame, predictions: np.ndarray) -> dict:
+        """Calculate important business metrics for FBA products."""
+        metrics = {}
+        
+        # Convert predictions to pandas Series with matching index
+        predictions_series = pd.Series(predictions, index=data.index)
+        
+        # ROI calculation
+        investment = data['cogs'] + data['fba_fees']  # COGS includes purchase and shipping
+        revenue = data['price']
+        roi = ((revenue - investment) / investment * 100).mean()
+        metrics['average_roi'] = roi
+        
+        # Profit Margins
+        total_costs = investment
+        profit_margin = ((revenue - total_costs) / revenue * 100).mean()
+        metrics['average_profit_margin'] = profit_margin
+        
+        # Break-even Analysis
+        break_even_units = (total_costs / (revenue - total_costs)).mean()
+        metrics['break_even_units'] = break_even_units
+        
+        # Inventory Metrics
+        avg_monthly_sales = data['estimated_monthly_sales'].mean()
+        metrics['average_monthly_sales'] = avg_monthly_sales
+        
+        # Payback Period (in months)
+        monthly_profit = predictions_series / 12  # Convert annual profit to monthly
+        payback_period = (investment / monthly_profit).mean()
+        metrics['payback_period_months'] = payback_period
+        
+        # Net Profit after All Fees
+        net_profit = (revenue - total_costs).mean()
+        metrics['average_net_profit'] = net_profit
+        
+        # Competition Analysis
+        competitor_correlation = data['competitors'].corr(predictions_series)
+        metrics['competitor_impact'] = competitor_correlation
+        
+        # BSR Impact (if available)
+        if 'bsr_ranking' in data.columns:
+            bsr_correlation = data['bsr_ranking'].corr(predictions_series)
+            metrics['bsr_correlation'] = bsr_correlation
+        
+        # Review Impact
+        review_correlation = data['review_rating'].corr(predictions_series)
+        metrics['review_impact'] = review_correlation
+        
+        return metrics
+    
     def train(
         self,
         data: pd.DataFrame,
@@ -149,12 +199,16 @@ class RandomForestModel(Model):
         # Make predictions on validation set
         y_pred = self.model.predict(X_val_scaled)
         
-        # Calculate metrics
+        # Calculate standard metrics
         metrics = {
             'mae': mean_absolute_error(y_val, y_pred),
             'rmse': np.sqrt(mean_squared_error(y_val, y_pred)),
             'r2': r2_score(y_val, y_pred)
         }
+        
+        # Add business metrics
+        business_metrics = self.calculate_business_metrics(X_val, y_pred)
+        metrics.update(business_metrics)
         
         # Auto-save if enabled
         if auto_save:

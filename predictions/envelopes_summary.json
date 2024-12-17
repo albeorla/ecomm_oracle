@@ -1,13 +1,10 @@
 {
     "product_type": "envelopes",
-    "total_products": 1000,
-    "average_predicted_profit": 260.7320377160528,
-    "median_predicted_profit": 226.8245260624929,
+    "total_products": 240,
+    "average_predicted_profit": 274.5597368933306,
+    "median_predicted_profit": 246.57644801759284,
     "profit_range": [
-        -220.6758347895303,
-        1184.5702949085214
-    ],
-    "mean_absolute_error": 11.881205603789837,
-    "prediction_accuracy": 0.9316830176690509,
-    "predictions_within_10_percent": 0.864
+        -146.7669699081347,
+        964.2657661464884
+    ]
 }
