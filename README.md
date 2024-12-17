@@ -52,21 +52,109 @@ Current PoC implementation includes:
 
 ## Mock Performance Metrics
 
-The following metrics are based on synthetic data and serve to validate the system's functionality:
+The following metrics are based on synthetic data and serve to validate the system's functionality. These metrics are calculated using simulated product data with realistic distributions but should not be used for actual business decisions.
 
-#### System Validation
-- 85.9% of predictions within ±10% (synthetic baseline)
-- Mean Absolute Error: $25.74
-- R² Score: 0.970 (on synthetic data)
-- Overall prediction accuracy: 93.2%
+#### Data Generation Context
+- Prices: Generated using beta distribution to mimic real-world price clustering
+- Weights: Beta distribution scaled to product-specific ranges
+- Reviews: Normal distribution for ratings, negative binomial for counts
+- Sales: Product-specific distributions based on market assumptions
+- Costs: Calculated using Amazon's FBA fee structure and simulated COGS
 
-#### Sample Profit Analysis
-- Test profit range: $-221.26 to $1,187.10
-- Sample mean profit: $260.76
-- Sample median profit: $246.58
-- Total products analyzed: 240
+#### Training Metrics (from app.log)
+- Mean Absolute Error: $25.74 (average dollar difference between predicted and actual profits)
+- R² Score: 0.970 (indicates model explains 97% of profit variance)
+- Prediction accuracy: 93.2% (percentage of predictions within acceptable error range)
+- Predictions within ±10%: 85.9% (percentage of predictions within 10% of actual values)
 
-Note: These metrics are generated from synthetic data and should not be used for actual business decisions.
+#### Business Performance Metrics (from summary.json)
+- Average Monthly Profit: $274.49 (revenue - costs, including FBA fees and COGS)
+- Average ROI: 15.34% (monthly profit / monthly investment in inventory)
+- Average Profit Margin: 12.75% (profit as percentage of revenue)
+- Break-even Units: 12.36 (units needed to cover fixed and variable costs)
+- Average Monthly Sales: 144.83 units (simulated based on market size assumptions)
+- Payback Period: 12.35 months (time to recover initial investment)
+- Competition Impact: -0.02 (correlation between competitor count and profit)
+- Review Impact: 0.03 (correlation between review rating and profit)
+
+#### Summary Statistics
+- Total Products Analyzed: 240 (sample size for model validation)
+- Average Predicted Profit: $274.56 (mean of model predictions)
+- Median Predicted Profit: $246.58 (central tendency, less affected by outliers)
+- Profit Range: [-$146.77 to $964.27] (shows potential variance in outcomes)
+
+#### Metric Calculation Methods
+
+**Profit Calculation**
+- Monthly Revenue = Units Sold × Price
+- Monthly Costs = (COGS + FBA Fees) × Units Sold
+- Monthly Profit = Monthly Revenue - Monthly Costs
+
+**ROI and Margins**
+- ROI = (Monthly Profit / Monthly Investment) × 100
+- Profit Margin = (Monthly Profit / Monthly Revenue) × 100
+- Break-even Units = Fixed Costs / (Price - Variable Costs per Unit)
+
+**Impact Correlations**
+- Competition Impact: Pearson correlation between competitor count and profit
+- Review Impact: Pearson correlation between review rating and profit
+- Both metrics range from -1 to 1, with 0 indicating no correlation
+
+#### Interpretation Guidelines
+
+**Model Performance**
+- MAE ($25.74) suggests predictions are typically within ~$26 of actual values
+- High R² (0.970) indicates strong predictive power, but may be optimistic due to synthetic data
+- 85.9% within 10% accuracy suggests good precision for a POC system
+
+**Business Metrics**
+- 15.34% ROI represents moderate profitability in simulated conditions
+- 12.75% profit margin aligns with typical ecommerce expectations
+- 12.36 break-even units suggests reasonable inventory risk
+- 12.35 month payback period indicates medium-term investment horizon
+
+**Correlation Insights**
+- Weak negative competition impact (-0.02) suggests minimal competitive pressure
+- Weak positive review impact (0.03) shows slight benefit from better ratings
+- Both correlations are intentionally conservative for POC purposes
+
+#### Limitations and Considerations
+1. All metrics are derived from synthetic data with assumed distributions
+2. Correlations are artificially constrained to avoid unrealistic relationships
+3. Market dynamics are simplified compared to real-world complexity
+4. Seasonal effects and trends are not currently modeled
+5. External factors (market changes, Amazon policy updates) are not considered
+
+Note: These metrics serve primarily to validate the system's functionality and demonstrate the analytical framework. Real-world implementation will require recalibration with actual historical data.
+
+## Validation Framework
+
+The system employs a multi-layered validation approach:
+
+### Statistical Validation
+- 80/20 train-validation split for model evaluation
+- Feature standardization using StandardScaler
+- Cross-validation during hyperparameter tuning
+- Multiple performance metrics (MAE, RMSE, R²)
+
+### Business Logic Validation
+- ROI and margin calculations for each prediction
+- Break-even analysis validation
+- Payback period calculations
+- Competition impact correlation
+- Review-to-profit relationship validation
+
+### Data Quality Validation
+- Schema validation for input data
+- Feature range and type checking
+- Missing value detection
+- Categorical value validation
+
+### Monitoring and Logging
+- Detailed metric logging in app.log
+- Training/validation split performance tracking
+- Feature importance monitoring
+- Error and warning tracking
 
 ### Business Metrics Framework
 
@@ -115,7 +203,7 @@ ecomm_oracle/
 │   │   ├── model_interface.py   # Model interface definition
 │   │   ├── model_tuner.py      # Tuning framework
 │   │   └── random_forest_model.py
-│   └── utils/
+│   └─ utils/
 │       └── logger.py
 ```
 
@@ -204,11 +292,19 @@ The system generates realistic product data using:
 - Competition-based distributions for competitor counts
 - Product-specific parameters for FBA fees and margins
 
-## Output
+## Output Files
 
-The analyzer generates two types of output files for each analysis:
+The analyzer generates three types of output files:
 
-1. **Detailed Predictions** (`predictions/<product_type>_predictions.csv`):
+1. **Log File** (`logs/app.log`):
+   - Training metrics (MAE, R², RMSE)
+   - Business performance metrics
+   - Prediction accuracy percentages
+   - Data validation results
+   - Execution timing information
+   - Error and warning messages
+
+2. **Detailed Predictions** (`predictions/<product_type>_predictions.csv`):
    - Product identifiers (ASIN)
    - Category and subcategory information
    - Product features (price, weight, review metrics)
@@ -217,15 +313,12 @@ The analyzer generates two types of output files for each analysis:
    - Monthly profit predictions
    - Last updated timestamp
 
-2. **Summary Report** (`predictions/<product_type>_summary.json`):
+3. **Summary Report** (`predictions/<product_type>_summary.json`):
    - Product type identifier
    - Total number of products analyzed
-   - Average predicted profit
-   - Median predicted profit
+   - Average and median predicted profits
    - Profit range [min, max]
+   - Business performance metrics
+   - Model performance indicators
 
-The system also maintains detailed logs in `logs/app.log` with:
-   - Training and prediction metrics
-   - Data validation results
-   - Execution times
-   - Error tracking and debugging information
+Additionally, errors and exceptions are logged to `logs/error.log` for debugging purposes.

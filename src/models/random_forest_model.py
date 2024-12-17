@@ -115,46 +115,88 @@ class RandomForestModel(Model):
         # Convert predictions to pandas Series with matching index
         predictions_series = pd.Series(predictions, index=data.index)
         
-        # ROI calculation
-        investment = data['cogs'] + data['fba_fees']  # COGS includes purchase and shipping
-        revenue = data['price']
-        roi = ((revenue - investment) / investment * 100).mean()
-        metrics['average_roi'] = roi
+        # Monthly revenue and costs
+        monthly_sales = data['estimated_monthly_sales']
+        unit_price = data['price']
+        monthly_revenue = unit_price * monthly_sales
+        
+        # Monthly costs
+        unit_costs = data['cogs'] + data['fba_fees']
+        monthly_costs = unit_costs * monthly_sales
+        
+        # Monthly profit (using actual monthly sales data)
+        monthly_profit = monthly_revenue - monthly_costs
+        metrics['average_monthly_profit'] = monthly_profit.mean()
+        
+        # ROI calculation (monthly)
+        monthly_investment = monthly_costs  # Initial investment is monthly inventory cost
+        valid_investments = monthly_investment > 0
+        if valid_investments.any():
+            monthly_roi = (monthly_profit[valid_investments] / monthly_investment[valid_investments] * 100).mean()
+        else:
+            monthly_roi = 0.0
+        metrics['average_roi'] = monthly_roi
         
         # Profit Margins
-        total_costs = investment
-        profit_margin = ((revenue - total_costs) / revenue * 100).mean()
+        valid_revenue = monthly_revenue > 0
+        if valid_revenue.any():
+            profit_margin = (monthly_profit[valid_revenue] / monthly_revenue[valid_revenue] * 100).mean()
+        else:
+            profit_margin = 0.0
         metrics['average_profit_margin'] = profit_margin
         
-        # Break-even Analysis
-        break_even_units = (total_costs / (revenue - total_costs)).mean()
+        # Break-even Analysis (units)
+        margin_per_unit = unit_price - unit_costs
+        valid_margins = margin_per_unit > 0.01  # Minimum 1 cent margin
+        if valid_margins.any():
+            break_even_units = (unit_costs[valid_margins] / margin_per_unit[valid_margins]).mean()
+        else:
+            break_even_units = float('inf')
         metrics['break_even_units'] = break_even_units
         
-        # Inventory Metrics
-        avg_monthly_sales = data['estimated_monthly_sales'].mean()
-        metrics['average_monthly_sales'] = avg_monthly_sales
+        # Average Monthly Sales
+        metrics['average_monthly_sales'] = monthly_sales.mean()
         
         # Payback Period (in months)
-        monthly_profit = predictions_series / 12  # Convert annual profit to monthly
-        payback_period = (investment / monthly_profit).mean()
+        MIN_MONTHLY_PROFIT = 0.01  # Minimum $0.01 monthly profit
+        valid_profits = monthly_profit > MIN_MONTHLY_PROFIT
+        if valid_profits.any():
+            payback_period = (monthly_investment[valid_profits] / monthly_profit[valid_profits]).mean()
+            payback_period = min(payback_period, 120)  # Cap at 10 years
+        else:
+            payback_period = float('inf')
         metrics['payback_period_months'] = payback_period
         
-        # Net Profit after All Fees
-        net_profit = (revenue - total_costs).mean()
-        metrics['average_net_profit'] = net_profit
+        # Net Profit after All Fees (monthly)
+        metrics['average_net_profit'] = monthly_profit.mean()
         
         # Competition Analysis
-        competitor_correlation = data['competitors'].corr(predictions_series)
-        metrics['competitor_impact'] = competitor_correlation
-        
-        # BSR Impact (if available)
-        if 'bsr_ranking' in data.columns:
-            bsr_correlation = data['bsr_ranking'].corr(predictions_series)
-            metrics['bsr_correlation'] = bsr_correlation
+        try:
+            competitor_data = data['competitors'].astype(float)
+            profit_data = monthly_profit.astype(float)
+            valid_data = ~(pd.isna(competitor_data) | pd.isna(profit_data))
+            if valid_data.any() and competitor_data[valid_data].std() > 0 and profit_data[valid_data].std() > 0:
+                competitor_correlation = competitor_data[valid_data].corr(profit_data[valid_data])
+                metrics['competitor_impact'] = competitor_correlation if not pd.isna(competitor_correlation) else 0.0
+            else:
+                metrics['competitor_impact'] = 0.0
+        except Exception as e:
+            print(f"Warning: Could not calculate competitor impact: {str(e)}")
+            metrics['competitor_impact'] = 0.0
         
         # Review Impact
-        review_correlation = data['review_rating'].corr(predictions_series)
-        metrics['review_impact'] = review_correlation
+        try:
+            review_data = data['review_rating'].astype(float)
+            profit_data = monthly_profit.astype(float)
+            valid_data = ~(pd.isna(review_data) | pd.isna(profit_data))
+            if valid_data.any() and review_data[valid_data].std() > 0 and profit_data[valid_data].std() > 0:
+                review_correlation = review_data[valid_data].corr(profit_data[valid_data])
+                metrics['review_impact'] = review_correlation if not pd.isna(review_correlation) else 0.0
+            else:
+                metrics['review_impact'] = 0.0
+        except Exception as e:
+            print(f"Warning: Could not calculate review impact: {str(e)}")
+            metrics['review_impact'] = 0.0
         
         return metrics
     

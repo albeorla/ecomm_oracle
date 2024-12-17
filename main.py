@@ -64,8 +64,13 @@ def analyze_product_type(
                 raise ValueError("Training data failed feature validation")
             
             # Train model
-            metrics = model.train(train_data, tune_first=tune)
-            logger.info(f"Model trained successfully: {metrics}")
+            training_metrics = model.train(train_data, tune_first=tune)
+            
+            # Log training metrics
+            logger.info("Model Training Metrics:")
+            logger.info(f"Mean Absolute Error: ${training_metrics['mae']:.2f}")
+            logger.info(f"R² Score: {training_metrics['r2']:.3f}")
+            logger.info(f"RMSE: ${training_metrics['rmse']:.2f}")
         
         # Get validation data for predictions
         val_data = data_source.get_validation_data()
@@ -80,7 +85,7 @@ def analyze_product_type(
         # Make predictions
         predictions = model.predict(val_data)
         
-        # Calculate metrics
+        # Calculate comprehensive metrics
         metrics = {
             'product_type': product_type,
             'total_products': len(val_data),
@@ -89,7 +94,29 @@ def analyze_product_type(
             'profit_range': [predictions.min(), predictions.max()]
         }
         
-        # Save results
+        # Calculate and log business metrics
+        business_metrics = model.calculate_business_metrics(val_data, predictions)
+        metrics.update(business_metrics)
+        
+        # Log business performance metrics
+        logger.info("\nBusiness Performance Metrics:")
+        logger.info(f"Average ROI: {business_metrics['average_roi']:.1f}%")
+        logger.info(f"Average Profit Margin: {business_metrics['average_profit_margin']:.1f}%")
+        logger.info(f"Break-even Units: {business_metrics['break_even_units']:.1f}")
+        logger.info(f"Average Monthly Sales: {business_metrics['average_monthly_sales']:.1f}")
+        logger.info(f"Payback Period: {business_metrics['payback_period_months']:.1f} months")
+        logger.info(f"Competition Impact: {business_metrics['competitor_impact']:.3f}")
+        logger.info(f"Review Impact: {business_metrics['review_impact']:.3f}")
+        
+        # Calculate prediction accuracy metrics
+        actual_profits = val_data['monthly_profit']
+        percent_diff = abs((predictions - actual_profits) / actual_profits)
+        within_ten_percent = (percent_diff <= 0.10).mean() * 100
+        
+        logger.info("\nPrediction Accuracy Metrics:")
+        logger.info(f"Predictions within 10%: {within_ten_percent:.1f}%")
+        
+        # Save all results
         save_predictions(val_data, metrics, product_type, output_dir)
         
     except Exception as e:

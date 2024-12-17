@@ -6,5 +6,14 @@
     "profit_range": [
         -146.7669699081347,
         964.2657661464884
-    ]
+    ],
+    "average_monthly_profit": 274.48868302265583,
+    "average_roi": 15.340745232432601,
+    "average_profit_margin": 12.754326924912359,
+    "break_even_units": 12.358955287721882,
+    "average_monthly_sales": 144.82916666666668,
+    "payback_period_months": 12.352450017256292,
+    "average_net_profit": 274.48868302265583,
+    "competitor_impact": -0.019987514256140447,
+    "review_impact": 0.028616686038352383
 }
