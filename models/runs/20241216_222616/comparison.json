@@ -1,0 +1,66 @@
+{
+    "models": {
+        "RandomForestModel": {
+            "metrics": {
+                "mae": 26.692262803674197,
+                "rmse": 39.89552578012869,
+                "r2": 0.9730915855705732,
+                "average_monthly_profit": 278.86944422153186,
+                "average_roi": 14.8194237544031,
+                "average_profit_margin": 12.224025286034228,
+                "break_even_units": 15.493233203105932,
+                "average_monthly_sales": 151.83854166666666,
+                "payback_period_months": 23.496394437438223,
+                "average_net_profit": 278.86944422153186,
+                "competitor_impact": 0.08182767544264889,
+                "review_impact": -0.06690934611675589
+            },
+            "feature_importance": {
+                "cogs": 0.2982631770776834,
+                "price": 0.2912084438302302,
+                "estimated_monthly_sales": 0.22875538534847206,
+                "weight": 0.08993748537755539,
+                "fba_fees": 0.0833410762947765,
+                "review_rating": 0.004716228980181093,
+                "competitors": 0.0032433945263318463,
+                "review_count": 0.000534808564769388
+            }
+        },
+        "GradientBoostModel": {
+            "metrics": {
+                "mae": 22.747145453085626,
+                "rmse": 34.04008708257764,
+                "r2": 0.9804106039474176,
+                "average_monthly_profit": 278.86944422153186,
+                "average_roi": 14.8194237544031,
+                "average_profit_margin": 12.224025286034228,
+                "break_even_units": 15.493233203105932,
+                "average_monthly_sales": 151.83854166666666,
+                "payback_period_months": 23.496394437438223,
+                "average_net_profit": 278.86944422153186,
+                "competitor_impact": 0.08182767544264889,
+                "review_impact": -0.06690934611675589,
+                "min_pred": -155.05674743652344,
+                "max_pred": 950.2308959960938,
+                "mean_pred": 275.3764953613281,
+                "median_pred": 242.84144592285156
+            },
+            "feature_importance": {
+                "cogs": 0.5216264128684998,
+                "price": 0.1438176929950714,
+                "estimated_monthly_sales": 0.13464811444282532,
+                "weight": 0.08425629884004593,
+                "fba_fees": 0.05707189068198204,
+                "review_count": 0.02840946801006794,
+                "review_rating": 0.015909450128674507,
+                "competitors": 0.014260675758123398
+            }
+        }
+    },
+    "timestamp": "20241216_222616",
+    "best_model": "GradientBoostModel",
+    "ensemble_weights": {
+        "RandomForestModel": 0.46010149099985276,
+        "GradientBoostModel": 0.5398985090001474
+    }
+}

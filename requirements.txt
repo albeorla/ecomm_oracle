@@ -6,3 +6,6 @@ jupyter==1.0.0
 optuna==3.5.0
 loguru==0.7.2 
 click==8.1.7
+matplotlib==3.8.2
+seaborn==0.13.0
+xgboost==2.0.3  # Using XGBoost instead of LightGBM for better macOS compatibility

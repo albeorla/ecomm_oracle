@@ -1,11 +1,11 @@
 {
     "product_type": "envelopes",
     "total_products": 240,
-    "average_predicted_profit": 274.5597368933306,
-    "median_predicted_profit": 246.57644801759284,
+    "average_predicted_profit": 137.0827004293422,
+    "median_predicted_profit": 121.86079086153902,
     "profit_range": [
-        -146.7669699081347,
-        964.2657661464884
+        -85.84806060791016,
+        524.244140625
     ],
     "average_monthly_profit": 274.48868302265583,
     "average_roi": 15.340745232432601,
@@ -15,5 +15,13 @@
     "payback_period_months": 12.352450017256292,
     "average_net_profit": 274.48868302265583,
     "competitor_impact": -0.019987514256140447,
-    "review_impact": 0.028616686038352383
+    "review_impact": 0.028616686038352383,
+    "ensemble_info": {
+        "best_model": "GradientBoostModel",
+        "model_weights": {
+            "RandomForestModel": 0.46010149099985276,
+            "GradientBoostModel": 0.5398985090001474
+        },
+        "ensemble_improvement": 60.39468067911218
+    }
 }

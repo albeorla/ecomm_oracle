@@ -127,6 +127,466 @@ The following metrics are based on synthetic data and serve to validate the syst
 
 Note: These metrics serve primarily to validate the system's functionality and demonstrate the analytical framework. Real-world implementation will require recalibration with actual historical data.
 
+## Model Architecture and Weights
+
+The system implements a modular model architecture with several key components:
+
+### Base Model Interface
+The `Model` abstract base class (`model_interface.py`) defines the core contract:
+- Training interface with performance metrics
+- Prediction pipeline for new data
+- Feature importance calculation
+- Model persistence (save/load)
+- Business metrics calculation
+
+### Model Implementations
+
+#### 1. Random Forest Model
+The primary model (`random_forest_model.py`) includes:
+
+**Feature Weights**
+- Price and COGS: Primary drivers of profit calculation
+- FBA fees: Direct impact on margins
+- Sales volume: Key multiplier for revenue
+- Review metrics: Secondary influence
+- Competition: Tertiary impact
+
+**Data Processing**
+- Feature standardization using StandardScaler
+- Categorical encoding for product types
+- Missing value handling
+- Outlier detection
+
+**Model Parameters**
+- Optimized number of trees (50-300 range)
+- Dynamic tree depth (3-20 levels)
+- Balanced sample splits (2-20 minimum samples)
+- Adaptive feature selection (auto/sqrt/log2)
+- Optional bootstrapping
+
+#### 2. Gradient Boost Model
+Alternative implementation (`gradient_boost_model.py`) using XGBoost:
+
+**Feature Handling**
+- Same feature set as Random Forest
+- Native categorical feature support
+- Gradient-based feature importance
+- Efficient memory usage for large datasets
+
+**Model Parameters**
+- Large number of trees (100-1000 range)
+- Adaptive learning rate (0.01-0.1)
+- Leaf-wise tree growth (20-100 leaves)
+- Controlled tree depth (3-12 levels)
+- Feature and data subsampling
+
+**Key Advantages**
+- Faster training times
+- Better handling of imbalanced data
+- More efficient with high-cardinality features
+- Native support for missing values
+
+### Hyperparameter Tuning
+The `ModelTuner` class (`model_tuner.py`) implements:
+
+**Optimization Strategy**
+- Cross-validation: 5-fold validation by default
+- Trial count: 100 optimization attempts
+- Objective: Minimize Mean Absolute Error
+- Secondary metrics: RMSE and R² score
+
+**Search Spaces**
+
+Random Forest:
+```python
+{
+    'n_estimators': (50, 300),
+    'max_depth': (3, 20),
+    'min_samples_split': (2, 20),
+    'min_samples_leaf': (1, 10),
+    'max_features': ['auto', 'sqrt', 'log2'],
+    'bootstrap': [True, False]
+}
+```
+
+Gradient Boost:
+```python
+{
+    'n_estimators': (100, 1000),
+    'learning_rate': (0.01, 0.1),
+    'num_leaves': (20, 100),
+    'max_depth': (3, 12),
+    'min_child_samples': (5, 100),
+    'subsample': (0.5, 1.0),
+    'colsample_bytree': (0.5, 1.0)
+}
+```
+
+**Metric Weights**
+- MAE: Primary optimization target
+- RMSE: Secondary validation metric
+- R²: Model fit indicator
+- Business metrics: Post-optimization validation
+
+### Performance Balancing
+
+The system balances multiple objectives:
+
+**Accuracy vs. Speed**
+- Default 100 trials for hyperparameter optimization
+- Parallel processing for cross-validation
+- Model-specific optimizations:
+  - Random Forest: Capped tree depth
+  - Gradient Boost: Leaf-wise growth
+
+**Precision vs. Generalization**
+- Random Forest: Bootstrap sampling
+- Gradient Boost: Feature/data subsampling
+- Cross-validation for stability
+- Feature standardization for consistency
+
+**Business vs. Statistical Metrics**
+- MAE optimization for practical error minimization
+- ROI and margin validation
+- Break-even analysis integration
+- Competition and review impact assessment
+
+### Model Selection Criteria
+
+**Random Forest Strengths**:
+1. Robust handling of non-linear relationships
+2. Built-in feature importance ranking
+3. Resistance to overfitting
+4. Parallel processing capability
+5. Interpretable decision paths
+
+**Gradient Boost Strengths**:
+1. Better performance on imbalanced data
+2. Faster training and inference
+3. Memory-efficient operation
+4. Native handling of missing values
+5. Fine-grained control over model complexity
+
+Future model implementations can be added by:
+1. Implementing the `Model` interface
+2. Adding appropriate hyperparameter search spaces
+3. Implementing business metric calculations
+4. Adding model-specific feature processing
+
+## Model Comparison and Ensemble Framework
+
+The system includes a comprehensive model comparison and ensemble framework for evaluating and combining different prediction approaches.
+
+### Model Comparison
+
+The `ModelEnsemble` class (`model_ensemble.py`) provides automated comparison capabilities:
+
+#### Performance Metrics
+- Mean Absolute Error (MAE)
+- R² Score (coefficient of determination)
+- Root Mean Square Error (RMSE)
+- Business metrics (ROI, profit margins, etc.)
+
+#### Visualization Suite
+Generated automatically for each comparison:
+- MAE comparison bar plots
+- R² score visualization
+- ROI comparison across models
+- Saved as timestamped PNG files
+
+#### Feature Importance Analysis
+- Per-model feature rankings
+- Importance score comparisons
+- Feature stability analysis
+
+### Ensemble Capabilities
+
+#### Weighted Averaging
+The system implements a weighted average ensemble:
+- Automatic weight optimization based on model performance
+- Inverse MAE weighting for better-performing models
+- Support for manual weight specification
+- Weight persistence and loading
+
+#### Default Models
+Two complementary models are included:
+1. **Random Forest**:
+   - Robust to outliers
+   - Handles non-linear relationships
+   - Good for feature importance analysis
+
+2. **Gradient Boost (XGBoost)**:
+   - Optimized for speed and performance
+   - Better compatibility across platforms
+   - Built-in early stopping and feature importance
+   - Robust to missing values
+
+#### Output Files
+
+The ensemble framework generates several output files:
+
+1. **Comparison Report** (`model_comparison_[timestamp].json`):
+```json
+{
+    "timestamp": "ISO-format timestamp",
+    "models": {
+        "RandomForestModel": {
+            "metrics": {
+                "mae": "Mean Absolute Error",
+                "r2": "R² Score",
+                "average_roi": "ROI percentage",
+                ...
+            },
+            "feature_importance": {
+                "feature1": "importance_score",
+                ...
+            }
+        },
+        "GradientBoostModel": {
+            ...
+        }
+    },
+    "best_model": "Name of best performing model",
+    "ensemble_weights": {
+        "RandomForestModel": "weight",
+        "GradientBoostModel": "weight"
+    }
+}
+```
+
+2. **Visualization File** (`model_comparison_[timestamp].png`):
+- Three-panel comparison plot
+- MAE, R², and ROI visualizations
+- Clear model-to-model comparisons
+
+3. **Ensemble Metadata** (`ensemble_metadata.json`):
+```json
+{
+    "model_paths": ["paths to saved models"],
+    "weights": ["model weights"],
+    "model_types": ["model class names"]
+}
+```
+
+### Usage Examples
+
+#### Basic Model Comparison
+```python
+from src.models.model_ensemble import ModelEnsemble
+from src.data.csv_data_source import CSVDataSource
+
+# Load data
+data_source = CSVDataSource(
+    product_type="envelopes",
+    samples=1000,
+    seed=42
+)
+training_data = data_source.get_products()
+
+# Initialize ensemble with default models
+ensemble = ModelEnsemble()
+
+# Compare models with hyperparameter tuning
+comparison = ensemble.compare_models(
+    data=training_data,
+    tune_first=True,
+    n_trials=100,
+    n_folds=5
+)
+
+# Access results
+best_model = comparison['best_model']
+model_weights = comparison['ensemble_weights']
+
+# Analyze feature importance
+for model_name, results in comparison['models'].items():
+    print(f"\nFeature Importance for {model_name}:")
+    for feature, importance in results['feature_importance'].items():
+        print(f"{feature}: {importance:.4f}")
+```
+
+#### Custom Model Configuration
+```python
+from src.models.random_forest_model import RandomForestModel
+from src.models.gradient_boost_model import GradientBoostModel
+
+# Initialize models with custom parameters
+rf_model = RandomForestModel(
+    model_params={
+        'n_estimators': 200,
+        'max_depth': 10,
+        'min_samples_split': 5
+    }
+)
+
+gb_model = GradientBoostModel(
+    model_params={
+        'n_estimators': 500,
+        'learning_rate': 0.05,
+        'num_leaves': 50
+    }
+)
+
+# Create ensemble with custom weights
+models = [rf_model, gb_model]
+weights = [0.6, 0.4]  # 60% RF, 40% GB
+ensemble = ModelEnsemble(models=models, weights=weights)
+
+# Make predictions
+predictions = ensemble.predict(new_data)
+```
+
+#### Production Workflow Example
+```python
+import pandas as pd
+from pathlib import Path
+
+def analyze_product_profitability(
+    data: pd.DataFrame,
+    output_dir: str = "predictions",
+    tune_models: bool = True
+) -> dict:
+    """
+    End-to-end product profitability analysis workflow.
+    
+    Args:
+        data: Input product data
+        output_dir: Directory for saving results
+        tune_models: Whether to tune hyperparameters
+    
+    Returns:
+        Dictionary containing analysis results
+    """
+    # Initialize ensemble
+    ensemble = ModelEnsemble(output_dir=output_dir)
+    
+    # Compare and train models
+    comparison = ensemble.compare_models(
+        data=data,
+        tune_first=tune_models
+    )
+    
+    # Make predictions
+    predictions = ensemble.predict(data)
+    
+    # Save predictions
+    predictions_df = pd.DataFrame({
+        'product_id': data.index,
+        'predicted_profit': predictions,
+        'confidence': 'medium'  # Placeholder for future enhancement
+    })
+    
+    output_path = Path(output_dir) / "predictions.csv"
+    predictions_df.to_csv(output_path, index=False)
+    
+    # Save ensemble for future use
+    ensemble.save(output_dir)
+    
+    return {
+        'comparison': comparison,
+        'predictions_path': str(output_path),
+        'best_model': comparison['best_model'],
+        'model_weights': comparison['ensemble_weights']
+    }
+
+# Usage
+results = analyze_product_profitability(
+    data=training_data,
+    output_dir="production/models",
+    tune_models=True
+)
+```
+
+### Best Practices
+
+#### Model Selection and Tuning
+1. **Data Volume Considerations**
+   - Use Random Forest for smaller datasets (<10K samples)
+   - Prefer Gradient Boost for larger datasets (>10K samples)
+   - Adjust `n_trials` based on available computation time
+
+2. **Feature Engineering**
+   - Normalize price and weight features
+   - One-hot encode categorical variables
+   - Handle missing values consistently
+   - Consider feature interactions for complex relationships
+
+3. **Model Weights**
+   - Start with automated weight optimization
+   - Adjust weights based on:
+     * Historical model performance
+     * Data quality per feature
+     * Business requirements
+     * Prediction confidence
+
+4. **Performance Monitoring**
+   - Track key metrics over time:
+     * MAE trend
+     * R² stability
+     * Feature importance shifts
+     * Business metric alignment
+   - Monitor for model drift
+   - Validate predictions against actuals
+
+5. **Business Integration**
+   - Align model selection with business goals:
+     * Prioritize MAE for direct profit prediction
+     * Focus on R² for trend analysis
+     * Consider ROI for investment decisions
+   - Validate predictions against:
+     * Historical performance
+     * Market conditions
+     * Seasonal patterns
+     * Competition metrics
+
+6. **Validation Strategy**
+   - Use cross-validation for stable metrics
+   - Implement time-based validation when possible
+   - Test extreme cases and edge scenarios
+   - Validate business metric calculations
+
+7. **Error Handling**
+   - Log all prediction failures
+   - Track feature distribution changes
+   - Monitor for outlier predictions
+   - Implement fallback strategies:
+     * Use ensemble average on model failure
+     * Maintain backup model versions
+     * Set reasonable prediction bounds
+
+8. **Documentation and Reproducibility**
+   - Record all hyperparameter choices
+   - Document feature transformations
+   - Save model comparison results
+   - Track data preprocessing steps
+   - Maintain version control for:
+     * Model implementations
+     * Training datasets
+     * Prediction outputs
+     * Configuration files
+
+9. **Deployment Considerations**
+   - Version models appropriately
+   - Implement gradual rollout
+   - Monitor system resources
+   - Plan for model updates
+   - Consider:
+     * Prediction latency
+     * Memory usage
+     * Batch vs. real-time
+     * Backup procedures
+
+10. **Maintenance and Updates**
+    - Schedule regular retraining
+    - Monitor prediction quality
+    - Update feature distributions
+    - Maintain test coverage
+    - Review and update:
+      * Business metrics
+      * Model weights
+      * Validation thresholds
+      * Performance targets
+
 ## Validation Framework
 
 The system employs a multi-layered validation approach:
@@ -198,14 +658,77 @@ ecomm_oracle/
 │   ├── data/
 │   │   ├── data_source.py       # Abstract data source interface
 │   │   ├── mock_data_source.py  # Synthetic data generation (to be replaced)
+│   │   ├── csv_data_source.py   # CSV data source implementation
+│   │   ├── real_data_source.py  # Real data source template
 │   │   └── product_specs.py     # Product specifications interface
 │   ├── models/
-│   │   ├── model_interface.py   # Model interface definition
-│   │   ├── model_tuner.py      # Tuning framework
-│   │   └── random_forest_model.py
-│   └─ utils/
-│       └── logger.py
+│   │   ├── model_interface.py   # Base model interface
+│   │   ├── model_tuner.py       # Hyperparameter tuning framework
+│   │   ├── random_forest_model.py # Random Forest implementation
+│   │   ├── gradient_boost_model.py # XGBoost implementation
+│   │   └── model_ensemble.py    # Model comparison and ensemble framework
+│   └── utils/
+│       └── logger.py            # Logging configuration
+├── data/                        # Data storage directory
+├── models/                      # Saved model directory
+├── predictions/                 # Prediction outputs
+│   ├── *_predictions.csv       # Detailed predictions
+│   └── *_summary.json         # Summary metrics
+└── logs/                       # Log files
+    ├── app.log                # Application logs
+    └── error.log             # Error tracking
 ```
+
+### Key Components
+
+#### Model Layer
+- `model_interface.py`: Abstract base class defining model contract
+- `random_forest_model.py`: Primary model implementation
+- `gradient_boost_model.py`: Alternative model implementation
+- `model_ensemble.py`: Model comparison and weighted ensemble
+- `model_tuner.py`: Hyperparameter optimization framework
+
+#### Data Layer
+- `data_source.py`: Abstract interface for data sources
+- `mock_data_source.py`: Synthetic data generation (POC)
+- `csv_data_source.py`: CSV-based data source
+- `real_data_source.py`: Template for production data source
+- `product_specs.py`: Product type specifications
+
+#### Utility Layer
+- `logger.py`: Centralized logging configuration
+- CLI interface in `main.py`
+- Error handling and monitoring
+
+### Directory Structure
+
+#### Source Code (`src/`)
+Contains all Python modules organized by functionality:
+- `data/`: Data handling and generation
+- `models/`: ML models and ensemble framework
+- `utils/`: Shared utilities
+
+#### Data Storage (`data/`)
+- Input data storage
+- Generated synthetic data
+- Data source files
+
+#### Model Storage (`models/`)
+- Saved model states
+- Tuning results
+- Ensemble configurations
+
+#### Predictions (`predictions/`)
+- Detailed prediction CSVs
+- Summary metrics JSON
+- Model comparison results
+- Visualization outputs
+
+#### Logs (`logs/`)
+- Application logs
+- Error tracking
+- Performance metrics
+- Execution timing
 
 ## Installation
 
