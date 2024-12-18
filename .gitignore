@@ -1,2 +1,24 @@
-venv
+# Virtual environment
+venv/
+.env
+
+# Python cache
 **/__pycache__/
+*.py[cod]
+*$py.class
+
+# Project output and temporary files
+output/
+data/generated/
+models/*.joblib
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

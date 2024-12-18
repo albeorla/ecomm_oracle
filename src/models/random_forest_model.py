@@ -7,64 +7,140 @@ from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+from sklearn.model_selection import GridSearchCV
 
 from .model_interface import Model
 from .model_tuner import ModelTuner
+from .base_model import BaseModel
 
-class RandomForestModel(Model):
+class RandomForestModel(BaseModel):
     """Random Forest implementation for profitability prediction."""
     
-    def __init__(
-        self,
-        model_dir: str = "models",
-        feature_columns: List[str] = None,
-        random_state: int = 42,
-        **model_params
-    ):
-        """
-        Initialize the Random Forest model.
+    def __init__(self, model_dir: str = None, params: dict = None):
+        """Initialize the Random Forest model.
         
         Args:
-            model_dir: Directory to save/load models from
-            feature_columns: List of feature column names to use
-            random_state: Random seed for reproducibility
-            **model_params: Parameters to pass to RandomForestRegressor
+            model_dir (str): Directory to save/load model files
+            params (dict): Model parameters. If None, uses defaults
         """
-        self.model = RandomForestRegressor(
-            random_state=random_state,
-            **model_params
-        )
-        self.scaler = StandardScaler()
-        self.feature_columns = feature_columns or [
-            'price', 'weight', 'review_rating', 'review_count',
-            'competitors', 'estimated_monthly_sales', 'fba_fees', 'cogs'
-        ]
-        self.model_dir = Path(model_dir)
-        self.model_dir.mkdir(parents=True, exist_ok=True)
+        super().__init__(model_dir)
+        
+        default_params = {
+            'n_estimators': 100,
+            'max_depth': 10,
+            'random_state': 42
+        }
+        
+        self.params = params if params is not None else default_params
+        self.model = RandomForestRegressor(**self.params)
+    
+    def train(self, df, tune_first: bool = False):
+        """Train the Random Forest model.
+        
+        Args:
+            df (pd.DataFrame): Training data
+            tune_first (bool): Whether to tune hyperparameters before training
+            
+        Returns:
+            dict: Training metrics
+        """
+        # Store categories from training data
+        for cat_col in self.categorical_columns:
+            if cat_col in df.columns:
+                if not hasattr(self, 'categories_'):
+                    self.categories_ = {}
+                self.categories_[cat_col] = sorted(df[cat_col].unique().tolist())
+        
+        X_train, X_test, y_train, y_test = self.prepare_data(df)
+        
+        if tune_first:
+            param_grid = {
+                'n_estimators': [50, 100, 200],
+                'max_depth': [5, 10, 15, None],
+                'min_samples_split': [2, 5, 10],
+                'min_samples_leaf': [1, 2, 4]
+            }
+            
+            grid_search = GridSearchCV(
+                RandomForestRegressor(random_state=42),
+                param_grid,
+                cv=5,
+                scoring='neg_mean_squared_error',
+                n_jobs=-1
+            )
+            
+            grid_search.fit(X_train, y_train)
+            self.model = grid_search.best_estimator_
+        else:
+            self.model.fit(X_train, y_train)
+        
+        return self.evaluate(X_test, y_test)
+    
+    def calculate_business_metrics(self, df, predictions):
+        """Calculate business-specific metrics.
+        
+        Args:
+            df (pd.DataFrame): Input data with actual values
+            predictions (np.array): Model predictions
+            
+        Returns:
+            dict: Business metrics
+        """
+        # Convert predictions to numpy array if needed
+        if not isinstance(predictions, np.ndarray):
+            predictions = np.array(predictions)
+        
+        # Calculate monthly values
+        monthly_investment = df['cogs'] * df['estimated_monthly_sales']
+        monthly_revenue = df['price'] * df['estimated_monthly_sales']
+        
+        # Normalize data for better correlation calculation
+        norm_competitors = (df['competitors'] - df['competitors'].mean()) / df['competitors'].std()
+        norm_reviews = (df['review_rating'] - df['review_rating'].mean()) / df['review_rating'].std()
+        norm_predictions = (predictions - predictions.mean()) / predictions.std()
+        
+        # Calculate correlations with error handling
+        try:
+            competitor_corr = np.corrcoef(norm_competitors, norm_predictions)[0, 1]
+            review_corr = np.corrcoef(norm_reviews, norm_predictions)[0, 1]
+        except:
+            competitor_corr = review_corr = 0
+        
+        # Calculate metrics
+        metrics = {
+            'average_roi': float((np.mean(predictions) / np.mean(monthly_investment)) * 100),
+            'average_profit_margin': float((np.mean(predictions) / np.mean(monthly_revenue)) * 100),
+            'break_even_units': max(1, float(np.ceil(df['cogs'].mean() / (df['price'].mean() - df['fba_fees'].mean())))),
+            'average_monthly_sales': float(df['estimated_monthly_sales'].mean()),
+            'payback_period_months': float(np.mean(monthly_investment) / np.mean(predictions)),
+            'competitor_impact': float(competitor_corr if not np.isnan(competitor_corr) else 0),
+            'review_impact': float(review_corr if not np.isnan(review_corr) else 0)
+        }
+        
+        return metrics
+    
+    def get_feature_importance(self):
+        """Get the importance of each feature in the model.
+        
+        Returns:
+            dict: Feature importance scores
+        """
+        if self.model is None:
+            raise ValueError("Model not trained. Call train() first.")
+            
+        # Get feature names including encoded categorical features
+        X = self.preprocess_data(pd.DataFrame({
+            col: [0] for col in self.feature_columns
+        }))
+        feature_names = X.columns.tolist()
+        
+        # Get feature importance scores
+        importance = dict(zip(feature_names, self.model.feature_importances_))
+        return dict(sorted(importance.items(), key=lambda x: x[1], reverse=True))
     
     def _get_default_model_path(self) -> Path:
         """Get the default path for saving/loading the model."""
         return self.model_dir / "random_forest_model.joblib"
-    
-    def _preprocess_data(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Preprocess the data for training or prediction."""
-        # One-hot encode categorical variables if present
-        categorical_columns = ['category', 'subcategory']
-        X = df.copy()
-        
-        for col in categorical_columns:
-            if col in X.columns:
-                X = pd.get_dummies(X, columns=[col], prefix=col)
-        
-        # Get all feature columns including one-hot encoded ones
-        feature_cols = (
-            self.feature_columns +
-            [col for col in X.columns if any(col.startswith(f"{c}_") for c in categorical_columns)]
-        )
-        
-        # Select only the feature columns that exist
-        available_cols = [col for col in feature_cols if col in X.columns]
-        return X[available_cols]
     
     def tune(
         self,
@@ -73,8 +149,7 @@ class RandomForestModel(Model):
         n_folds: int = 5,
         study_name: str = "random_forest_optimization"
     ) -> Dict[str, Any]:
-        """
-        Tune model hyperparameters using cross-validation.
+        """Tune model hyperparameters using cross-validation.
         
         Args:
             data: Training data
@@ -86,116 +161,65 @@ class RandomForestModel(Model):
             Dictionary containing optimization results
         """
         print("\nTuning model hyperparameters...")
-        X = self._preprocess_data(data)
-        y = data['monthly_profit']
         
-        # Create and run tuner
-        tuner = ModelTuner(
-            n_trials=n_trials,
-            n_folds=n_folds,
-            random_state=42,
-            study_name=study_name,
-            storage_dir=self.model_dir
+        # Store categories before preprocessing
+        for cat_col in self.categorical_columns:
+            if cat_col in data.columns:
+                if not hasattr(self, 'categories_'):
+                    self.categories_ = {}
+                self.categories_[cat_col] = sorted(data[cat_col].unique().tolist())
+        
+        # Prepare data for tuning
+        X = self.preprocess_data(data)
+        y = data['monthly_profit'].astype(np.float64)
+        
+        # Scale features
+        X_scaled = self.scaler.fit_transform(X)
+        
+        # Define parameter grid
+        param_grid = {
+            'n_estimators': [50, 100, 200],
+            'max_depth': [5, 10, 15, None],
+            'min_samples_split': [2, 5, 10],
+            'min_samples_leaf': [1, 2, 4]
+        }
+        
+        # Perform grid search
+        grid_search = GridSearchCV(
+            RandomForestRegressor(random_state=42),
+            param_grid,
+            cv=n_folds,
+            scoring='neg_mean_squared_error',
+            n_jobs=-1
         )
         
-        results = tuner.tune_model(X, y, RandomForestRegressor)
+        grid_search.fit(X_scaled, y)
         
         # Update model with best parameters
         self.model = RandomForestRegressor(
-            **results['best_params'],
+            **grid_search.best_params_,
             random_state=42
         )
         
-        return results
-    
-    def train(
-        self,
-        data: pd.DataFrame,
-        auto_save: bool = True,
-        tune_first: bool = False,
-        **tune_params
-    ) -> Dict[str, float]:
-        """
-        Train the model on the provided data.
-        
-        Args:
-            data: DataFrame containing training data
-            auto_save: Whether to automatically save the model after training
-            tune_first: Whether to tune hyperparameters before training
-            **tune_params: Parameters to pass to tune() if tune_first is True
-            
-        Returns:
-            Dictionary containing model performance metrics
-        """
-        # Tune hyperparameters if requested
-        if tune_first:
-            self.tune(data, **tune_params)
-        
-        X = self._preprocess_data(data)
-        y = data['monthly_profit']
-        
-        # Split the data
-        X_train, X_val, y_train, y_val = train_test_split(
-            X, y, test_size=0.2, random_state=42
-        )
-        
-        # Scale the features
-        X_train_scaled = self.scaler.fit_transform(X_train)
-        X_val_scaled = self.scaler.transform(X_val)
-        
-        # Train the model
-        self.model.fit(X_train_scaled, y_train)
-        
-        # Make predictions on validation set
-        y_pred = self.model.predict(X_val_scaled)
-        
-        # Calculate metrics
-        metrics = {
-            'mae': mean_absolute_error(y_val, y_pred),
-            'rmse': np.sqrt(mean_squared_error(y_val, y_pred)),
-            'r2': r2_score(y_val, y_pred)
+        return {
+            'best_params': grid_search.best_params_,
+            'best_score': -grid_search.best_score_  # Convert back to positive RMSE
         }
-        
-        # Auto-save if enabled
-        if auto_save:
-            self.save()
-        
-        return metrics
     
-    def predict(self, data: pd.DataFrame) -> pd.Series:
-        """
-        Make predictions on new data.
+    def predict(self, df: pd.DataFrame) -> np.ndarray:
+        """Make predictions on new data.
         
         Args:
-            data: DataFrame containing features for prediction
+            df (pd.DataFrame): Data to make predictions on
             
         Returns:
-            Series containing predictions
+            np.ndarray: Predicted values
         """
-        X = self._preprocess_data(data)
-        X_scaled = self.scaler.transform(X)
-        return pd.Series(self.model.predict(X_scaled))
-    
-    def get_feature_importance(self) -> Dict[str, float]:
-        """
-        Get the importance of each feature in the model.
-        
-        Returns:
-            Dictionary mapping feature names to their importance scores
-        """
-        feature_importance = dict(zip(
-            self.feature_columns,
-            self.model.feature_importances_
-        ))
-        return dict(sorted(
-            feature_importance.items(),
-            key=lambda x: x[1],
-            reverse=True
-        ))
+        # Use the base class's predict method
+        return super().predict(df)
     
     def save(self, path: Optional[str] = None) -> None:
-        """
-        Save the model to disk.
+        """Save the model to disk.
         
         Args:
             path: Path where to save the model. If None, uses default path.
@@ -206,14 +230,15 @@ class RandomForestModel(Model):
         model_data = {
             'model': self.model,
             'scaler': self.scaler,
-            'feature_columns': self.feature_columns
+            'feature_columns': self.feature_columns,
+            'categorical_columns': self.categorical_columns,
+            'categories_': getattr(self, 'categories_', {})
         }
         joblib.dump(model_data, save_path)
         print(f"Model saved to {save_path}")
     
     def load(self, path: Optional[str] = None) -> None:
-        """
-        Load the model from disk.
+        """Load the model from disk.
         
         Args:
             path: Path to the saved model. If None, uses default path.
@@ -226,4 +251,7 @@ class RandomForestModel(Model):
         self.model = model_data['model']
         self.scaler = model_data['scaler']
         self.feature_columns = model_data['feature_columns']
+        self.categorical_columns = model_data['categorical_columns']
+        if 'categories_' in model_data:
+            self.categories_ = model_data['categories_']
         print(f"Model loaded from {load_path}") 

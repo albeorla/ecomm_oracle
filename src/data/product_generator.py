@@ -102,3 +102,37 @@ class ProductGenerator:
         
         logger.debug(f"Generated {len(df)} products with average profit: ${df['monthly_profit'].mean():.2f}")
         return df 
+
+    def generate_product_data(self, n_samples: int) -> pd.DataFrame:
+        """Generate realistic product data."""
+        data = {
+            'purchase_price': self._generate_purchase_prices(n_samples),
+            'selling_price': self._generate_selling_prices(n_samples),
+            'shipping_cost': self._generate_shipping_costs(n_samples),
+            'fba_fees': self._generate_fba_fees(n_samples),
+            'weight': self._generate_weights(n_samples),
+            'rating': self._generate_ratings(n_samples),
+            'review_count': self._generate_review_counts(n_samples),
+            'num_competitors': self._generate_competitor_counts(n_samples),
+            'bsr_ranking': self._generate_bsr_rankings(n_samples),
+            'ppc_cost': self._generate_ppc_costs(n_samples),
+            'monthly_sales': self._generate_monthly_sales(n_samples),
+            'inventory_size': self._generate_inventory_sizes(n_samples)
+        }
+        return pd.DataFrame(data)
+
+    def _generate_ppc_costs(self, n_samples: int) -> np.ndarray:
+        """Generate realistic PPC costs."""
+        return np.random.gamma(2, 0.5, n_samples)  # Average PPC cost around $1
+
+    def _generate_monthly_sales(self, n_samples: int) -> np.ndarray:
+        """Generate realistic monthly sales volumes."""
+        return np.random.negative_binomial(5, 0.3, n_samples)  # Realistic sales distribution
+
+    def _generate_inventory_sizes(self, n_samples: int) -> np.ndarray:
+        """Generate realistic inventory sizes."""
+        return np.random.negative_binomial(10, 0.2, n_samples) * 100  # Inventory in hundreds
+
+    def _generate_bsr_rankings(self, n_samples: int) -> np.ndarray:
+        """Generate Best Sellers Rank numbers."""
+        return np.random.exponential(50000, n_samples)  # Lower is better

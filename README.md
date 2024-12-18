@@ -1,35 +1,108 @@
 # Amazon FBA Product Profitability Analyzer
 
-A machine learning-powered tool for predicting and analyzing profitability of Amazon FBA (Fulfillment by Amazon) products. This project serves as a proof-of-concept for data-driven decision making in e-commerce product selection.
+A machine learning tool to analyze and predict profitability of Amazon FBA products. Helps identify the most promising ASINs within a category based on profitability, competition, and market metrics.
 
-## Features
+## Key Features
 
-- 🤖 Machine learning-based profit prediction (93% accuracy)
-- 📊 Statistical analysis of product performance
-- 🔄 Automated data generation with realistic distributions
-- 🎯 Hyperparameter tuning for optimal model performance
-- 📈 Detailed performance metrics and predictions
-- 📝 Comprehensive logging and execution timing
-- 🛠️ Command-line interface with sensible defaults
+1. **Category Viability Analysis**:
+   - Percentage of profitable products
+   - Number of high-ROI opportunities
+   - Competition levels
+   - Average and median profits
+   - Risk assessment (profit volatility)
 
-## Performance Metrics
+2. **ASIN Scoring System (0-15 points)**:
+   - Profitability (0-5 points)
+     - Monthly profit thresholds
+     - ROI targets (40%, 60%)
+   - Competition (0-3 points)
+     - Number of competitors
+     - Seller count
+   - Demand (0-4 points)
+     - BSR thresholds
+     - Monthly sales volume
+   - Reviews (0-3 points)
+     - Rating threshold
+     - Review count
+     - Review velocity
 
-Based on recent testing with envelope products:
-- 86.4% of predictions within 10% accuracy
-- Mean Absolute Error: $11.88
-- Overall prediction accuracy: 93.17%
-- Profit range: -$220 to $1,184
-- Average predicted profit: $260.73
+3. **Cost Structure Analysis**:
+   - FBA fees calculation
+   - PPC cost estimation
+   - COGS modeling
+   - Profit margin analysis
 
-## Installation
+## Example Workflow
+
+1. **Analyze a Product Category**:
+```bash
+python main.py analyze envelopes
+```
+
+Expected Output:
+```
+Model Training Metrics:
+Mean Absolute Error: $48.24
+R² Score: 0.974
+RMSE: $78.97
+
+Category Viability Summary:
+Total Products Analyzed: 41
+Profitable Products: 65.2%
+Products with High ROI: 12
+Products with Low Competition: 15
+Products with Good BSR: 18
+Average Monthly Profit: $127.45
+Top 10 Average Profit: $312.67
+
+Top 5 Opportunities:
+ASIN: B000000528 | Score: 13/15 | Profit: $74.57 | ROI: 52.0% | BSR: 34,000 | Competitors: 6
+ASIN: B000000003 | Score: 12/15 | Profit: $69.12 | ROI: 48.5% | BSR: 41,000 | Competitors: 8
+...
+```
+
+2. **Output Files**:
+- `predictions/envelopes_predictions.csv`: Detailed ASIN-level data
+  ```
+  asin,category,price,monthly_profit,roi,asin_score,bsr,competitors,...
+  B000000528,Office & Supplies,24.99,74.57,0.52,13,34000,6,...
+  ```
+- `predictions/envelopes_summary.json`: Category metrics
+  ```json
+  {
+    "product_type": "envelopes",
+    "total_products": 41,
+    "profitable_percentage": "65.2%",
+    "high_roi_count": 12,
+    "avg_monthly_profit": 127.45,
+    ...
+  }
+  ```
+
+## Success Criteria
+
+1. **Category Level**:
+   - \>50% profitable products
+   - \>10 high-ROI opportunities
+   - Average profit >$100/month
+   - Low profit volatility
+
+2. **Individual ASINs**:
+   - ASIN Score >10/15
+   - ROI >40%
+   - BSR <50,000
+   - <10 competitors
+   - >10 monthly sales
+
+## Installation & Usage
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/albeorla/ecomm_oracle.git
 cd ecomm_oracle
 ```
 
-2. Create a virtual environment and activate it:
+2. Create and activate a virtual environment:
 ```bash
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
@@ -40,116 +113,92 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-## Usage
-
-The tool provides a command-line interface with two main commands:
-
-### List Available Product Types
-
+4. List Available Product Types
 ```bash
 python main.py list-products
 ```
 
-### Analyze Product Profitability
-
-Basic usage with default settings:
+5. Analyze a Product Type
 ```bash
-python main.py analyze <product_type>
+python main.py analyze [PRODUCT_TYPE] [OPTIONS]
 ```
 
-Example with specific product type:
-```bash
-python main.py analyze envelopes
-```
-
-### Advanced Options
-
-- Generate more samples:
-```bash
-python main.py analyze envelopes --samples 2000
-```
-
-- Enable hyperparameter tuning:
-```bash
-python main.py analyze envelopes --tune
-```
-
-- Use existing model for predictions only:
-```bash
-python main.py analyze envelopes --predict-only
-```
-
-- Customize directories:
-```bash
-python main.py analyze envelopes --model-dir custom_models --data-dir custom_data --output-dir custom_predictions
-```
-
-### Command Line Options
-
-```
 Options:
-  -n, --samples INTEGER     Number of samples to generate [default: 1000]
-  --model-dir TEXT         Directory for model files [default: models]
-  --data-dir TEXT         Directory for data files [default: data]
-  --output-dir TEXT       Directory for prediction outputs [default: predictions]
-  --tune / --no-tune      Tune model hyperparameters [default: no-tune]
-  --predict-only          Only make predictions using existing model
-  --help                  Show this message and exit
+- `-n, --samples`: Number of samples to generate (default: 1000)
+- `--tune/--no-tune`: Enable/disable hyperparameter tuning
+- `--predict-only`: Use existing model without retraining
+
+Example:
+```bash
+python main.py analyze electronics -n 2000 --tune
 ```
 
 ## Project Structure
 
 ```
 ecomm_oracle/
-├── src/
-│   ├── data/
-│   │   ├── csv_data_source.py    # Data generation and handling
-│   │   ├── product_generator.py  # Realistic data generation
-│   │   └── product_specs.py      # Product specifications
-│   ├── models/
-│   │   ├── model_interface.py    # Model interface definition
-│   │   ├── model_tuner.py       # Hyperparameter tuning
-│   │   └── random_forest_model.py # ML model implementation
-│   └── utils/
-│       └── logger.py             # Logging configuration
-├── data/                         # Generated data files
-├── models/                       # Trained model files
-├── predictions/                  # Prediction outputs
-├── main.py                      # CLI entry point
-└── requirements.txt             # Project dependencies
+├── data/               # Data storage and generation
+│   ├── generated/     # Generated synthetic data
+│   └── product_specs/ # Product category specifications
+├── models/            # Saved model files
+├── output/           # Analysis outputs
+│   ├── logs/        # Application logs
+│   └── predictions/ # Prediction results
+├── src/             # Source code
+│   ├── data/        # Data handling modules
+│   └── models/      # ML model implementations
+├── main.py          # CLI application
+└── requirements.txt # Project dependencies
 ```
 
-## Data Generation
+## Business Metrics
 
-The system generates realistic product data using:
-- Beta distributions for prices and weights
-- Normal distributions for review ratings
-- Negative binomial distributions for review counts
-- Competition-based distributions for competitor counts
-- Product-specific parameters for FBA fees and margins
+The analyzer provides realistic business metrics based on current FBA market conditions:
 
-## Output
+1. **Category-Specific Metrics**
 
-The analyzer generates two types of output files for each analysis:
+   Office & Supplies:
+   - Price Range: $8.99-$24.99
+   - Target ROI: 40-80%
+   - Profit Margins: 20-35%
+   - Monthly Sales: 10-50 units
+   - Seasonal Peaks: Q1 (tax season), Q3 (back-to-school)
+   - PPC Costs: 8-15% of revenue
+   - COGS: 25-40% of price
 
-1. **Detailed Predictions** (`predictions/<product_type>_predictions.csv`):
-   - Individual predictions for each product
-   - Actual vs predicted profits
-   - Prediction accuracy metrics
-   - Feature values used for prediction
+   Electronics:
+   - Price Range: $15.99-$199.99
+   - Target ROI: 30-60%
+   - Profit Margins: 15-25%
+   - Seasonal Peak: Q4 (holidays)
+   - PPC Costs: 10-20% of revenue
+   - COGS: 30-50% of price
 
-2. **Summary Report** (`predictions/<product_type>_summary.json`):
-   - Overall statistics and metrics
-   - Average and median predicted profit
-   - Profit range and distribution
-   - Model performance indicators
-   - Percentage of predictions within accuracy thresholds
+2. **Cost Structure**
+   - Amazon Referral Fees: 15% of price
+   - FBA Fees: Based on size/weight
+     - Base fee: $2.92-$3.00
+     - Weight fee: $0.40-$0.75/lb
+     - Category fee: $0.4-$1.0
+   - PPC Costs: Category dependent
+   - COGS: Category dependent
 
-## Development
+3. **Market Impact**
+   - Competition Impact: Correlation with profit
+   - Review Rating Impact: Correlation with profit
+   - Payback Period: 1.5-3 months typical
 
-The project uses:
-- scikit-learn for machine learning
-- pandas for data handling
-- Click for CLI interface
-- loguru for logging
-- numpy for numerical operations
+4. **Success Indicators**
+   - BSR < 50,000 in category
+   - Review rating > 4.0
+   - Monthly sales > 10 units
+   - Profit margin > 20%
+   - ROI > 40%
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
