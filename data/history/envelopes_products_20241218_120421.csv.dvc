@@ -1,0 +1,5 @@
+outs:
+- md5: 0d04e6fa5557d72cd60a8ec5d577bbf3
+  size: 186332
+  hash: md5
+  path: envelopes_products_20241218_120421.csv

@@ -1,24 +1,66 @@
-# Virtual environment
-venv/
-.env
-
-# Python cache
-**/__pycache__/
+# Python
+__pycache__/
 *.py[cod]
 *$py.class
+*.so
+.Python
+venv/
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
-# Project output and temporary files
-output/
-data/generated/
-models/*.joblib
+# Jupyter Notebook
+.ipynb_checkpoints
 
-# IDE
+# VS Code
 .vscode/
+
+# PyCharm
 .idea/
 
-# OS
+# Environment variables
+.env
+.env.*
+
+# DVC
+/data/*.csv
+/data/history/*.csv
+/dvc-storage/
+
+# MLflow
+mlruns/
+mlartifacts/
+
+# Model artifacts and data
+models/artifacts/
+models/registry/
+models/*.joblib
+output/predictions/
+output/logs/
+
+# Mac
 .DS_Store
-Thumbs.db
+.AppleDouble
+.LSOverride
 
 # Logs
 *.log
+logs/
+output/logs/
+
+# Local development
+*.sqlite
+*.db

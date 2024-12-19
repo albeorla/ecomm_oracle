@@ -8,6 +8,7 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import GridSearchCV
+import optuna
 
 from .model_interface import Model
 from .model_tuner import ModelTuner
@@ -16,23 +17,28 @@ from .base_model import BaseModel
 class RandomForestModel(BaseModel):
     """Random Forest implementation for profitability prediction."""
     
-    def __init__(self, model_dir: str = None, params: dict = None):
-        """Initialize the Random Forest model.
-        
-        Args:
-            model_dir (str): Directory to save/load model files
-            params (dict): Model parameters. If None, uses defaults
-        """
-        super().__init__(model_dir)
-        
-        default_params = {
-            'n_estimators': 100,
-            'max_depth': 10,
-            'random_state': 42
+    def __init__(self, **kwargs):
+        super().__init__()
+        self.model = RandomForestRegressor(
+            n_estimators=100,
+            max_depth=10,
+            min_samples_split=2,
+            min_samples_leaf=1,
+            random_state=42,
+            n_jobs=-1,
+            **kwargs
+        )
+    
+    def get_param_space(self, trial: optuna.Trial) -> Dict[str, Any]:
+        """Define the hyperparameter search space for Random Forest."""
+        return {
+            'n_estimators': trial.suggest_int('n_estimators', 50, 300),
+            'max_depth': trial.suggest_int('max_depth', 3, 15),
+            'min_samples_split': trial.suggest_int('min_samples_split', 2, 20),
+            'min_samples_leaf': trial.suggest_int('min_samples_leaf', 1, 10),
+            'max_features': trial.suggest_categorical('max_features', ['auto', 'sqrt', 'log2']),
+            'bootstrap': trial.suggest_categorical('bootstrap', [True, False])
         }
-        
-        self.params = params if params is not None else default_params
-        self.model = RandomForestRegressor(**self.params)
     
     def train(self, df, tune_first: bool = False):
         """Train the Random Forest model.
